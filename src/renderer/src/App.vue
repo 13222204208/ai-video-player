@@ -627,7 +627,6 @@ const busy = computed(
         @cancel="cancel"
         @export="exportSubtitles"
         @remux="remux"
-        @toggle-minimal="toggleMinimal"
       />
 
       <main class="main">
@@ -640,6 +639,7 @@ const busy = computed(
           :autoplay="shouldAutoplay"
           :minimal="minimalMode"
           @time="onPlayerTime"
+          @toggle-minimal="toggleMinimal"
           @error="error = $event"
         />
         <div v-else class="remux-hint">
@@ -708,11 +708,6 @@ const busy = computed(
           </template>
         </div>
     </div>
-
-    <!-- 精简模式下的「还原」按钮 -->
-    <button v-if="minimalMode && video" class="restore-btn" title="退出精简模式（Esc）" @click="minimalMode = false">
-      还原
-    </button>
   </div>
 </template>
 
@@ -726,26 +721,6 @@ const busy = computed(
   flex: 1;
   min-height: 0;
   display: flex;
-}
-.restore-btn {
-  position: fixed;
-  top: 8px;
-  left: 8px;
-  z-index: 100;
-  padding: 2px 7px;
-  font-size: 11px;
-  line-height: 1.5;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(0, 0, 0, 0.45);
-  color: #ddd;
-  border-radius: 5px;
-  cursor: pointer;
-  opacity: 0.45;
-  transition: opacity 0.2s, background 0.2s;
-}
-.restore-btn:hover {
-  opacity: 1;
-  background: rgba(0, 0, 0, 0.75);
 }
 .sidebar {
   width: 220px;

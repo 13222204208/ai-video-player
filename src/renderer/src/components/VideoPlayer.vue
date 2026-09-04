@@ -15,6 +15,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'error', message: string): void
   (e: 'time', t: number): void
+  (e: 'toggleMinimal'): void
 }>()
 
 const videoEl = ref<HTMLVideoElement | null>(null)
@@ -37,9 +38,11 @@ const bottomMargin = ref(76)
 const controlsVisible = ref(false)
 const showSettings = ref(false)
 const osd = ref<string | null>(null)
+const minimalBarVisible = ref(false)
 
 let hideTimer: ReturnType<typeof setTimeout> | null = null
 let osdTimer: ReturnType<typeof setTimeout> | null = null
+let minimalHideTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(
   () => props.src,
@@ -185,6 +188,26 @@ function pokeControls(): void {
   }, 2600)
 }
 
+// 精简模式：鼠标移动唤出临时控制条（右上角「还原」），静止后自动隐藏
+function pokeMinimal(): void {
+  if (!props.minimal) return
+  minimalBarVisible.value = true
+  if (minimalHideTimer) clearTimeout(minimalHideTimer)
+  minimalHideTimer = setTimeout(() => {
+    minimalBarVisible.value = false
+  }, 2600)
+}
+
+function onPlayerMouseMove(): void {
+  pokeControls()
+  pokeMinimal()
+}
+
+function onPlayerMouseLeave(): void {
+  controlsVisible.value = false
+  minimalBarVisible.value = false
+}
+
 // ---- 进度条拖拽 ----
 let seeking = false
 function onSeekDown(e: PointerEvent): void {
@@ -280,6 +303,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   if (hideTimer) clearTimeout(hideTimer)
   if (osdTimer) clearTimeout(osdTimer)
+  if (minimalHideTimer) clearTimeout(minimalHideTimer)
 })
 </script>
 
@@ -287,8 +311,8 @@ onBeforeUnmount(() => {
   <div
     ref="playerEl"
     class="player"
-    @mousemove="pokeControls"
-    @mouseleave="controlsVisible = false"
+    @mousemove="onPlayerMouseMove"
+    @mouseleave="onPlayerMouseLeave"
   >
     <video
       ref="videoEl"
@@ -348,6 +372,7 @@ onBeforeUnmount(() => {
         <button class="icon-btn" title="字幕延迟 5s" @click="adjustSubtitle(5)">+5s</button>
       </div>
 
+      <button class="icon-btn icon-lg" title="精简模式（只显示视频和字幕，M 切换）" @click="emit('toggleMinimal')">⧉</button>
       <button class="icon-btn icon-lg" title="全屏（双击画面亦可）" @click="toggleFullscreen">⛶</button>
       <button class="icon-btn icon-lg" title="设置" @click="showSettings = !showSettings">⚙</button>
     </div>
@@ -413,6 +438,11 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- 精简模式：鼠标移动唤出的临时控制条（右上角还原） -->
+    <div v-if="minimal" class="minimal-bar" :class="{ visible: minimalBarVisible }">
+      <button class="minimal-restore" title="还原（Esc）" @click="emit('toggleMinimal')">还原</button>
     </div>
 
     <!-- OSD 浮动提示 -->
@@ -655,5 +685,38 @@ onBeforeUnmount(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* ---- 精简模式临时控制条 ---- */
+.minimal-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 12px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+  opacity: 0;
+  transition: opacity 0.25s;
+  z-index: 7;
+  pointer-events: none;
+}
+.minimal-bar.visible {
+  opacity: 1;
+}
+.minimal-restore {
+  pointer-events: auto;
+  padding: 3px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.5);
+  color: #eee;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.minimal-restore:hover {
+  background: rgba(0, 0, 0, 0.8);
 }
 </style>
