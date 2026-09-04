@@ -2,12 +2,10 @@ cask "ai-video-player" do
   version "0.1.0"
   sha256 "b24511ef3b3b0b3a4febe6abaf6d6a621730c5114c1bbd66dbfea8ed9beeaab1"
 
-  # TODO: 把 zip 上传到你的 GitHub Release 后，替换成真实地址：
-  #   https://github.com/<你的用户名>/ai-video-player/releases/download/v#{version}/AIVideoPlayer-#{version}-arm64-mac.zip
-  url "https://github.com/yourname/ai-video-player/releases/download/v#{version}/AIVideoPlayer-#{version}-arm64-mac.zip"
+  url "https://github.com/13222204208/ai-video-player/releases/download/v#{version}/AIVideoPlayer-#{version}-arm64-mac.zip"
   name "AIVideoPlayer"
   desc "本地 AI 视频播放器：无字幕日语/英语视频实时生成原文 + 中文字幕（完全离线）"
-  homepage "https://github.com/yourname/ai-video-player"
+  homepage "https://github.com/13222204208/ai-video-player"
 
   # Apple Silicon 专用（whisper.cpp 为 arm64 Metal 构建）
   depends_on arch: :arm64

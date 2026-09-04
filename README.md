@@ -31,12 +31,9 @@
 3. 若 Windows SmartScreen 拦截（当前为未签名安装包），点「更多信息 → 仍要运行」。
 4. 首次使用请在应用内下载模型（同 macOS）。
 
-### Homebrew（macOS）
+### Homebrew（macOS，可选）
 
-```bash
-brew tap 13222204208/ai-video-player https://github.com/13222204208/ai-video-player
-brew install --cask ai-video-player
-```
+已内置 Cask 文件 `homebrew/Casks/ai-video-player.rb`，可自行搭建 tap 仓库分发，详见 [`homebrew/README.md`](homebrew/README.md)。
 
 > 安装程序默认**不内置**识别/翻译模型（体积过大）。首次运行请联网下载一次，之后完全离线。
 > 模型存放位置：macOS `~/Library/Application Support/AIVideoPlayer/models`，Windows `%APPDATA%\AIVideoPlayer\models`。
