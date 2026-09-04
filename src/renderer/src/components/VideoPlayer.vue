@@ -9,6 +9,7 @@ const props = defineProps<{
   title?: string
   initialTime?: number
   autoplay?: boolean
+  minimal?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -309,14 +310,14 @@ onBeforeUnmount(() => {
     />
 
     <!-- IINA 顶部栏 -->
-    <div class="top-bar" :class="{ visible: controlsVisible }">
+    <div v-show="!minimal" class="top-bar" :class="{ visible: controlsVisible }">
       <span class="title">{{ title || '视频' }}</span>
       <span class="spacer"></span>
       <span class="subtitle-indicator" v-if="subtitleOffset !== 0">字幕 {{ subtitleOffset > 0 ? '+' : '' }}{{ subtitleOffset.toFixed(1) }}s</span>
     </div>
 
     <!-- IINA 底部控制栏 -->
-    <div class="control-bar" :class="{ visible: controlsVisible }">
+    <div v-show="!minimal" class="control-bar" :class="{ visible: controlsVisible }">
       <button class="icon-btn play" @click="togglePlay">
         {{ isPlaying ? '⏸' : '▶' }}
       </button>
@@ -352,7 +353,7 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- IINA 右侧设置抽屉 -->
-    <div class="settings" :class="{ open: showSettings }">
+    <div v-show="!minimal" class="settings" :class="{ open: showSettings }">
       <div class="settings-header">
         <span>字幕设置</span>
         <button class="icon-btn" @click="showSettings = false">✕</button>

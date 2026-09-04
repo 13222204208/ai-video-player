@@ -24,6 +24,7 @@ const emit = defineEmits<{
   (e: 'cancel'): void
   (e: 'export'): void
   (e: 'remux'): void
+  (e: 'toggleMinimal'): void
 }>()
 
 const LANG_LABEL: Record<string, string> = { ja: '日语', en: '英语', auto: '自动' }
@@ -115,6 +116,9 @@ const LANG_LABEL: Record<string, string> = { ja: '日语', en: '英语', auto: '
       </button>
       <button :disabled="!hasSegments || running || translating" @click="emit('export')">
         导出字幕
+      </button>
+      <button title="只显示视频和字幕，按 Esc 还原" @click="emit('toggleMinimal')">
+        精简模式
       </button>
     </div>
   </div>

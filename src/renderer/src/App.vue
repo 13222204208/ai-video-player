@@ -40,6 +40,8 @@ let currentVideoTime = 0
 let lastSavedTime = -1
 // 有已保存字幕时自动播放；无字幕则保持暂停（图标应为 ▶）
 const shouldAutoplay = ref(false)
+// 精简模式：只显示视频 + 字幕，隐藏侧栏/控制面板/状态栏
+const minimalMode = ref(false)
 
 const pipelineState = ref<PipelineProgress>({ stage: 'idle', message: '', percent: 0 })
 const streamState = ref<StreamProgress>({ status: 'listening', message: '', percent: 0 })
@@ -474,6 +476,19 @@ async function transcode(): Promise<void> {
   }
 }
 
+function toggleMinimal(): void {
+  minimalMode.value = !minimalMode.value
+}
+
+function onAppKeydown(e: KeyboardEvent): void {
+  // Esc 退出精简模式（也支持 M 键快速切换）
+  if (e.key === 'Escape' && minimalMode.value) {
+    minimalMode.value = false
+  } else if ((e.key === 'm' || e.key === 'M') && video.value && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+    minimalMode.value = !minimalMode.value
+  }
+}
+
 function onWindowDrop(e: DragEvent): void {
   e.preventDefault()
   const f = e.dataTransfer?.files?.[0]
@@ -491,6 +506,7 @@ onMounted(() => {
   void loadLibrary()
   window.addEventListener('dragover', onWindowDragOver)
   window.addEventListener('drop', onWindowDrop)
+  window.addEventListener('keydown', onAppKeydown)
   unsubscribers.push(window.api.onPipelineProgress((p) => (pipelineState.value = p)))
   unsubscribers.push(window.api.onModelProgress((p) => (downloading.value = p)))
   unsubscribers.push(window.api.onStreamProgress((p) => (streamState.value = p)))
@@ -530,6 +546,7 @@ onBeforeUnmount(() => {
   saveCurrentProgress()
   window.removeEventListener('dragover', onWindowDragOver)
   window.removeEventListener('drop', onWindowDrop)
+  window.removeEventListener('keydown', onAppKeydown)
   unsubscribers.forEach((u) => u())
 })
 
@@ -543,7 +560,7 @@ const busy = computed(
 <template>
   <div class="app">
     <div class="content">
-      <aside class="sidebar">
+      <aside v-show="!minimalMode" class="sidebar">
         <div class="sidebar-tabs">
             <button
               class="tab"
@@ -592,6 +609,7 @@ const busy = computed(
           </template>
           <template v-else>
       <ControlPanel
+        v-show="!minimalMode"
         :models="models"
         v-model:selected-model="selectedModel"
         v-model:mode="mode"
@@ -609,6 +627,7 @@ const busy = computed(
         @cancel="cancel"
         @export="exportSubtitles"
         @remux="remux"
+        @toggle-minimal="toggleMinimal"
       />
 
       <main class="main">
@@ -619,6 +638,7 @@ const busy = computed(
           :title="video.path.split('/').pop()"
           :initial-time="initialTime"
           :autoplay="shouldAutoplay"
+          :minimal="minimalMode"
           @time="onPlayerTime"
           @error="error = $event"
         />
@@ -643,7 +663,7 @@ const busy = computed(
         </div>
       </main>
 
-      <footer class="status" v-if="busy || error || statusMsg">
+      <footer class="status" v-show="!minimalMode" v-if="busy || error || statusMsg">
         <div v-if="running && mode === 'batch'" class="bar">
           <span class="bar-label">{{ pipelineState.message }}</span>
           <div class="bar-track">
@@ -688,6 +708,11 @@ const busy = computed(
           </template>
         </div>
     </div>
+
+    <!-- 精简模式下的「还原」按钮 -->
+    <button v-if="minimalMode && video" class="restore-btn" title="退出精简模式（Esc）" @click="minimalMode = false">
+      还原
+    </button>
   </div>
 </template>
 
@@ -701,6 +726,25 @@ const busy = computed(
   flex: 1;
   min-height: 0;
   display: flex;
+}
+.restore-btn {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 100;
+  padding: 7px 14px;
+  font-size: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.55);
+  color: #eee;
+  border-radius: 8px;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.2s, background 0.2s;
+}
+.restore-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.8);
 }
 .sidebar {
   width: 220px;
