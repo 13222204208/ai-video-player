@@ -729,22 +729,23 @@ const busy = computed(
 }
 .restore-btn {
   position: fixed;
-  top: 12px;
-  right: 12px;
+  top: 8px;
+  left: 8px;
   z-index: 100;
-  padding: 7px 14px;
-  font-size: 13px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(0, 0, 0, 0.55);
-  color: #eee;
-  border-radius: 8px;
+  padding: 2px 7px;
+  font-size: 11px;
+  line-height: 1.5;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.45);
+  color: #ddd;
+  border-radius: 5px;
   cursor: pointer;
-  opacity: 0.55;
+  opacity: 0.45;
   transition: opacity 0.2s, background 0.2s;
 }
 .restore-btn:hover {
   opacity: 1;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.75);
 }
 .sidebar {
   width: 220px;
