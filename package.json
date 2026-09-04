@@ -6,6 +6,7 @@
   "author": "",
   "license": "MIT",
   "scripts": {
+    "postinstall": "node scripts/postinstall.mjs",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
@@ -36,8 +37,8 @@
     "@huggingface/transformers": "^3.3.0",
     "@types/node": "^20.17.9",
     "@vitejs/plugin-vue": "^5.2.1",
-    "electron": "^33.2.1",
-    "electron-builder": "^25.1.8",
+    "electron": "^43.5.1",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^3.0.0",
     "typescript": "^5.6.3",
     "vite": "^6.0.3",
