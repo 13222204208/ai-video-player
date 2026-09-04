@@ -1,0 +1,47 @@
+{
+  "name": "local-ai-video-player",
+  "version": "0.1.0",
+  "description": "Mac + Windows 本地 AI 视频播放器：无字幕日语/英语视频实时生成原文 + 中文字幕",
+  "main": "./out/main/index.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "build:win": "electron-vite build && electron-builder --win",
+    "build:mac": "electron-vite build && electron-builder --mac",
+    "build:mac:adhoc": "electron-vite build && electron-builder --mac --dir && node scripts/adhoc-sign.mjs",
+    "build:whisper": "node scripts/build-whisper.mjs",
+    "build:llama": "node scripts/build-llama.mjs",
+    "download:model": "node scripts/download-model.mjs",
+    "download:llm": "node scripts/download-llm.mjs"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
+      "ffmpeg-static",
+      "sharp",
+      "protobufjs"
+    ]
+  },
+  "devDependencies": {
+    "@huggingface/transformers": "^3.3.0",
+    "@types/node": "^20.17.9",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^3.0.0",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.3",
+    "vue": "^3.5.13",
+    "vue-tsc": "^2.1.10"
+  }
+}

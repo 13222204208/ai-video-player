@@ -1,0 +1,39 @@
+appId: com.example.local-ai-video-player
+productName: AIVideoPlayer
+# 签名：默认走 ad-hoc（免费）。
+# 有 Apple Developer ID 证书后，把 identity 改成证书名并开启 CSC_IDENTITY_AUTO_DISCOVERY 即可。
+# identity: null 表示不查找证书、跳过正式签名（仅 ad-hoc，本机可用，分发时会有 Gatekeeper 提示）。
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**
+asarUnpack:
+  - node_modules/ffmpeg-static/**
+npmRebuild: false
+mac:
+  category: public.app-category.video
+  target:
+    - dmg
+  # identity: null -> 跳过正式签名（ad-hoc 由后续 codesign 脚本密封）
+  identity: null
+  # 只打包本平台二进制，避免把 Windows 的 ffmpeg.exe 等打进 Mac 包
+  extraResources:
+    - from: resources/bin/darwin-arm64
+      to: bin/darwin-arm64
+      filter:
+        - "**/*"
+win:
+  icon: build/icon.ico
+  target:
+    - nsis
+  extraResources:
+    - from: resources/bin/win32-x64
+      to: bin/win32-x64
+      filter:
+        - "**/*"
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

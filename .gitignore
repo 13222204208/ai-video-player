@@ -1,0 +1,17 @@
+node_modules/
+out/
+dist/
+*.log
+.DS_Store
+.vite/
+
+# 下载/编译产物（体积大，不入库）
+resources/bin/
+resources/models/
+.cache/
+models/
+
+# 本地开发环境（不提交）
+.home/
+.pnpm-store/
+.venv/

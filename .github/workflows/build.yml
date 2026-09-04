@@ -1,0 +1,80 @@
+name: Build Installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build whisper.cpp (Windows)
+        run: pnpm run build:whisper
+
+      - name: Build llama.cpp (Windows)
+        run: pnpm run build:llama
+
+      - name: Build Windows installer
+        run: pnpm run build:win
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: local-ai-video-player-windows
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build whisper.cpp (macOS)
+        run: pnpm run build:whisper
+
+      - name: Build llama.cpp (macOS)
+        run: pnpm run build:llama
+
+      - name: Build macOS installer
+        run: pnpm run build:mac
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: local-ai-video-player-macos
+          path: |
+            dist/*.dmg
+            dist/*.zip
