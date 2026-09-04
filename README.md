@@ -14,7 +14,10 @@
 
 ## 📦 下载安装（已打包程序，无需编译）
 
-安装包发布在 GitHub Releases：https://github.com/13222204208/ai-video-player/releases
+安装包发布在 GitHub Releases：https://github.com/13222204208/ai-video-player/releases/tag/v0.1.0
+
+- macOS (Apple Silicon)：[AIVideoPlayer-0.1.0-arm64-mac.zip](https://github.com/13222204208/ai-video-player/releases/download/v0.1.0/AIVideoPlayer-0.1.0-arm64-mac.zip)
+- Windows (x64)：[AIVideoPlayer.Setup.0.1.0.exe](https://github.com/13222204208/ai-video-player/releases/download/v0.1.0/AIVideoPlayer.Setup.0.1.0.exe)
 
 ### macOS（Apple Silicon）
 
@@ -26,7 +29,7 @@
 
 ### Windows（x64）
 
-1. 下载 `AIVideoPlayer Setup 0.1.0.exe`。
+1. 下载 `AIVideoPlayer.Setup.0.1.0.exe`。
 2. 双击运行安装程序，按提示完成安装。
 3. 若 Windows SmartScreen 拦截（当前为未签名安装包），点「更多信息 → 仍要运行」。
 4. 首次使用请在应用内下载模型（同 macOS）。
