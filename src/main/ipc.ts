@@ -22,7 +22,7 @@ import {
 import { remuxToMp4, transcodeToH264, probeVideo } from './services/ffmpeg'
 import { getTranscodeCacheDir } from './services/paths'
 
-const CACHE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024 // 5GB
+const CACHE_LIMIT_BYTES = 20 * 1024 * 1024 * 1024 // 20GB
 
 /** 转换缓存：app 缓存目录下，文件名 = 源路径 SHA1 哈希（确定性、可复用、不污染源目录） */
 function cacheKey(videoPath: string): string {
