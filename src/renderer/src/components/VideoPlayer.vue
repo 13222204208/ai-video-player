@@ -370,7 +370,13 @@ onBeforeUnmount(() => {
       <span class="time">{{ fmtTime(duration) }}</span>
 
       <div class="vol">
-        <span class="vol-icon" title="音量">♫</span>
+        <span class="vol-icon" title="音量">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+        </span>
         <input
           v-model.number="volume"
           type="range"
@@ -379,12 +385,24 @@ onBeforeUnmount(() => {
           step="0.05"
           class="vol-slider"
           title="音量"
-          :style="{ background: `linear-gradient(to right, var(--accent) ${volumeFill}, rgba(255, 255, 255, 0.25) ${volumeFill})` }"
+          :style="{ '--fill': volumeFill }"
         />
       </div>
 
       <div class="vol">
-        <span class="vol-icon" title="亮度">☼</span>
+        <span class="vol-icon" title="亮度">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </span>
         <input
           v-model.number="brightness"
           type="range"
@@ -393,7 +411,7 @@ onBeforeUnmount(() => {
           step="0.05"
           class="vol-slider"
           title="亮度"
-          :style="{ background: `linear-gradient(to right, var(--accent) ${brightnessFill}, rgba(255, 255, 255, 0.25) ${brightnessFill})` }"
+          :style="{ '--fill': brightnessFill }"
           @input="showOsd('亮度 ' + Math.round(brightness * 100) + '%')"
         />
       </div>
@@ -620,7 +638,11 @@ onBeforeUnmount(() => {
   gap: 6px;
 }
 .vol-icon {
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ddd;
+  flex-shrink: 0;
   cursor: default;
 }
 .vol-slider {
@@ -628,10 +650,18 @@ onBeforeUnmount(() => {
   appearance: none;
   width: 70px;
   height: 4px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.25);
+  background: transparent;
   outline: none;
   cursor: pointer;
+}
+.vol-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--accent) var(--fill, 50%),
+    rgba(255, 255, 255, 0.25) var(--fill, 50%)
+  );
 }
 .vol-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
