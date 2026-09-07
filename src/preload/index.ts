@@ -48,6 +48,9 @@ const api: Api = {
   transcodeVideo: (videoPath) => ipcRenderer.invoke('media:transcode', videoPath),
   onTranscodeLog: (cb) => subscribe('transcode:log', cb),
 
+  cacheStats: () => ipcRenderer.invoke('cache:stats'),
+  clearCache: () => ipcRenderer.invoke('cache:clear'),
+
   openVideoDialog: () => ipcRenderer.invoke('dialog:openVideo')
 }
 

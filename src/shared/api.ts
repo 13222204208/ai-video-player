@@ -61,5 +61,8 @@ export interface Api {
   transcodeVideo(videoPath: string): Promise<{ outputPath: string; cached: boolean }>
   onTranscodeLog(cb: (p: RemuxLog) => void): () => void
 
+  cacheStats(): Promise<{ fileCount: number; totalBytes: number; dir: string }>
+  clearCache(): Promise<{ fileCount: number; totalBytes: number; dir: string }>
+
   openVideoDialog(): Promise<string | null>
 }

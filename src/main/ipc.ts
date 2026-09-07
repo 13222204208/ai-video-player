@@ -1,6 +1,7 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
-import { extname, join, dirname, basename } from 'node:path'
-import { existsSync, readFileSync, writeFileSync, statSync } from 'node:fs'
+import { extname, join } from 'node:path'
+import { existsSync, readFileSync, writeFileSync, statSync, readdirSync, unlinkSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import type { RunPipelineOptions, SaveSubtitlesPayload } from '@shared/types'
 import { runPipeline, cancelPipeline } from './services/pipeline'
 import { startStreaming, cancelStreaming } from './services/streaming'
@@ -19,18 +20,21 @@ import {
   getProgress
 } from './services/library'
 import { remuxToMp4, transcodeToH264, probeVideo } from './services/ffmpeg'
+import { getTranscodeCacheDir } from './services/paths'
 
-/** 转换缓存：原视频同目录下 <原名>.aivplayer.mp4，附带 <原名>.aivplayer.json 记录源文件指纹 */
+const CACHE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024 // 5GB
+
+/** 转换缓存：app 缓存目录下，文件名 = 源路径 SHA1 哈希（确定性、可复用、不污染源目录） */
+function cacheKey(videoPath: string): string {
+  return createHash('sha1').update(videoPath).digest('hex')
+}
+
 function convertedPath(videoPath: string): string {
-  const dir = dirname(videoPath)
-  const base = basename(videoPath, extname(videoPath))
-  return join(dir, `${base}.aivplayer.mp4`)
+  return join(getTranscodeCacheDir(), `${cacheKey(videoPath)}.mp4`)
 }
 
 function sidecarPath(videoPath: string): string {
-  const dir = dirname(videoPath)
-  const base = basename(videoPath, extname(videoPath))
-  return join(dir, `${base}.aivplayer.json`)
+  return join(getTranscodeCacheDir(), `${cacheKey(videoPath)}.json`)
 }
 
 /** 缓存是否仍有效（源文件大小 + 修改时间未变） */
@@ -47,7 +51,7 @@ function hasValidCache(videoPath: string): boolean {
   }
 }
 
-/** 转换成功后记录源文件指纹，下次直接复用缓存 */
+/** 转换成功后记录源文件指纹，并触发 LRU 清理 */
 function markCache(videoPath: string): void {
   try {
     const src = statSync(videoPath)
@@ -57,8 +61,71 @@ function markCache(videoPath: string): void {
       'utf8'
     )
   } catch {
-    /* 忽略（目录只读等场景不影响主流程） */
+    /* 忽略 */
   }
+  enforceCacheLimit()
+}
+
+/** 超过大小上限时，按修改时间删除最旧的缓存文件（LRU） */
+function enforceCacheLimit(): void {
+  try {
+    const dir = getTranscodeCacheDir()
+    const files = readdirSync(dir).map((name) => {
+      const p = join(dir, name)
+      const st = statSync(p)
+      return { p, mtime: st.mtimeMs, size: st.size }
+    })
+    let total = files.reduce((s, f) => s + f.size, 0)
+    if (total <= CACHE_LIMIT_BYTES) return
+    files.sort((a, b) => a.mtime - b.mtime)
+    for (const f of files) {
+      if (total <= CACHE_LIMIT_BYTES) break
+      try {
+        unlinkSync(f.p)
+        total -= f.size
+      } catch {
+        /* 忽略单个删除失败 */
+      }
+    }
+  } catch {
+    /* 忽略 */
+  }
+}
+
+/** 转换缓存统计 */
+function cacheStats(): { fileCount: number; totalBytes: number; dir: string } {
+  const dir = getTranscodeCacheDir()
+  try {
+    const names = readdirSync(dir)
+    let totalBytes = 0
+    for (const name of names) {
+      try {
+        totalBytes += statSync(join(dir, name)).size
+      } catch {
+        /* 忽略 */
+      }
+    }
+    return { fileCount: names.length, totalBytes, dir }
+  } catch {
+    return { fileCount: 0, totalBytes: 0, dir }
+  }
+}
+
+/** 清空转换缓存 */
+function clearCache(): { fileCount: number; totalBytes: number; dir: string } {
+  const dir = getTranscodeCacheDir()
+  try {
+    for (const name of readdirSync(dir)) {
+      try {
+        unlinkSync(join(dir, name))
+      } catch {
+        /* 忽略 */
+      }
+    }
+  } catch {
+    /* 忽略 */
+  }
+  return cacheStats()
 }
 
 export function registerIpc(): void {
@@ -168,6 +235,9 @@ export function registerIpc(): void {
   ipcMain.handle('media:probe', (_event, videoPath: string) => {
     return probeVideo(videoPath)
   })
+
+  ipcMain.handle('cache:stats', () => cacheStats())
+  ipcMain.handle('cache:clear', () => clearCache())
 
   ipcMain.handle('media:remux', (event, videoPath: string) => {
     const ext = extname(videoPath).toLowerCase()

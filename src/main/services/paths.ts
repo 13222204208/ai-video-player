@@ -23,9 +23,20 @@ export function getModelsDir(): string {
   return dir
 }
 
-/** 临时工作目录（音频抽取、转码产物） */
+/** 临时工作目录（音频抽取） */
 export function getTempDir(): string {
   const dir = join(app.getPath('temp'), 'local-ai-video-player')
+  mkdirSync(dir, { recursive: true })
+  return dir
+}
+
+/**
+ * 转码缓存目录：应用缓存目录下（macOS ~/Library/Caches/AIVideoPlayer/transcoded，
+ * Windows %LOCALAPPDATA%\AIVideoPlayer\transcoded），不污染源视频目录。
+ */
+export function getTranscodeCacheDir(): string {
+  // Electron 类型定义未收录 'cache'，但运行时是合法的路径名（macOS ~/Library/Caches、Windows %LOCALAPPDATA%）
+  const dir = join((app.getPath as (name: string) => string)('cache'), 'transcoded')
   mkdirSync(dir, { recursive: true })
   return dir
 }

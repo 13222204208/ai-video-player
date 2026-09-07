@@ -107,8 +107,14 @@ export function scanVideoFiles(dir: string): string[] {
     }
     for (const e of entries) {
       const full = join(d, e.name)
-      if (e.isDirectory()) walk(full)
-      else if (e.isFile() && VIDEO_EXT.includes(extname(e.name).toLowerCase())) results.push(full)
+      if (e.isDirectory()) {
+        walk(full)
+      } else if (e.isFile()) {
+        const name = e.name.toLowerCase()
+        // 排除本应用的转换缓存（历史版本会生成 <原名>.aivplayer.mp4），避免污染播放列表
+        if (name.endsWith('.aivplayer.mp4')) continue
+        if (VIDEO_EXT.includes(extname(name))) results.push(full)
+      }
     }
   }
   walk(dir)

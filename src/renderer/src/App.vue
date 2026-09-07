@@ -14,6 +14,9 @@ import VideoPlayer from './components/VideoPlayer.vue'
 import ControlPanel from './components/ControlPanel.vue'
 
 interface LoadedVideo {
+  /** 原始文件路径：播放列表/历史/进度/字幕都以此为键 */
+  sourcePath: string
+  /** 实际播放的文件路径（可能是转换缓存） */
   path: string
   url: string
   needsRemux: boolean
@@ -53,6 +56,9 @@ const llmLoading = ref(false)
 // 播放列表 / 历史记录
 const library = ref<Library>({ playlist: [], history: [], progress: {} })
 const sidebarTab = ref<'playlist' | 'history'>('playlist')
+
+// 转换缓存占用
+const cacheInfo = ref<{ fileCount: number; totalBytes: number; dir: string } | null>(null)
 
 const error = ref<string | null>(null)
 const statusMsg = ref('')
@@ -169,7 +175,7 @@ function onPlayerTime(t: number): void {
   if (!video.value) return
   if (Math.abs(t - lastSavedTime) >= 5) {
     lastSavedTime = t
-    void window.api.saveProgress(video.value.path, t)
+    void window.api.saveProgress(video.value.sourcePath, t)
   }
 }
 
@@ -177,7 +183,7 @@ function onPlayerTime(t: number): void {
 function saveCurrentProgress(): void {
   if (!video.value || currentVideoTime <= 0) return
   try {
-    void window.api.saveProgress(video.value.path, currentVideoTime)
+    void window.api.saveProgress(video.value.sourcePath, currentVideoTime)
   } catch {
     /* 忽略 */
   }
@@ -208,7 +214,7 @@ function setVideoFromPath(path: string): void {
   saveCurrentProgress()
   shouldAutoplay.value = false
   const needsRemux = !PLAYABLE_EXT.includes(extOf(path))
-  video.value = { path, url: needsRemux ? '' : mediaUrl(path), needsRemux }
+  video.value = { sourcePath: path, path, url: needsRemux ? '' : mediaUrl(path), needsRemux }
   resetResults()
   void afterVideoOpened(path)
   if (needsRemux) void autoConvert(path)
@@ -220,7 +226,7 @@ function onDropped(file: File): void {
     saveCurrentProgress()
     shouldAutoplay.value = false
     const needsRemux = !PLAYABLE_EXT.includes(extOf(path))
-    video.value = { path, url: needsRemux ? '' : URL.createObjectURL(file), needsRemux }
+    video.value = { sourcePath: path, path, url: needsRemux ? '' : URL.createObjectURL(file), needsRemux }
     resetResults()
     void afterVideoOpened(path)
     if (needsRemux) void autoConvert(path)
@@ -286,12 +292,36 @@ async function clearHistoryList(): Promise<void> {
   }
 }
 
+function fmtBytes(n: number): string {
+  if (n < 1024) return n + ' B'
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB'
+  if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB'
+  return (n / 1024 / 1024 / 1024).toFixed(2) + ' GB'
+}
+
+async function loadCacheStats(): Promise<void> {
+  try {
+    cacheInfo.value = await window.api.cacheStats()
+  } catch {
+    /* 忽略 */
+  }
+}
+
+async function clearTranscodeCache(): Promise<void> {
+  try {
+    cacheInfo.value = await window.api.clearCache()
+    statusMsg.value = '转换缓存已清理'
+  } catch {
+    /* 忽略 */
+  }
+}
+
 /** 自动保存字幕（生成完成后调用，下次打开无需重新识别） */
 async function autoSaveSubtitles(): Promise<void> {
   if (!video.value || !segments.value.length) return
   try {
     await window.api.saveSubtitles({
-      videoPath: video.value.path,
+      videoPath: video.value.sourcePath,
       segments: segments.value.map((s) => ({
         index: s.index,
         start: s.start,
@@ -352,7 +382,7 @@ async function runBatch(): Promise<void> {
   if (!video.value || video.value.needsRemux) return
   running.value = true
   try {
-    const res = await window.api.runPipeline(video.value.path, {
+    const res = await window.api.runPipeline(video.value.sourcePath, {
       model: selectedModel.value,
       language: 'auto'
     })
@@ -382,7 +412,7 @@ async function runStream(): Promise<void> {
   if (!video.value || video.value.needsRemux) return
   running.value = true
   try {
-    const res = await window.api.startStreaming(video.value.path, {
+    const res = await window.api.startStreaming(video.value.sourcePath, {
       model: selectedModel.value,
       language: 'auto'
     })
@@ -430,7 +460,7 @@ async function exportSubtitles(): Promise<void> {
   if (!video.value || !segments.value.length) return
   try {
     const { srtPath, vttPath } = await window.api.saveSubtitles({
-      videoPath: video.value.path,
+      videoPath: video.value.sourcePath,
       // 转成普通对象，避免 Vue 响应式 Proxy 无法被 IPC 结构化克隆
       segments: segments.value.map((s) => ({
         index: s.index,
@@ -450,12 +480,11 @@ async function remux(): Promise<void> {
   if (!video.value) return
   remuxing.value = true
   error.value = null
+  const src = video.value.sourcePath
   try {
-    const { outputPath, cached } = await window.api.remuxVideo(video.value.path)
-    video.value = { path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
-    statusMsg.value = cached
-      ? '已使用缓存的转换文件，无需重新转换'
-      : '已无损转为 MP4，并缓存到原视频同目录（下次直接播放）'
+    const { outputPath, cached } = await window.api.remuxVideo(src)
+    video.value = { sourcePath: src, path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
+    statusMsg.value = cached ? '已使用缓存的转换文件，无需重新转换' : '已无损转为 MP4'
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -469,12 +498,11 @@ async function transcode(): Promise<void> {
   transcoding.value = true
   transcodePercent.value = 0
   error.value = null
+  const src = video.value.sourcePath
   try {
-    const { outputPath, cached } = await window.api.transcodeVideo(video.value.path)
-    video.value = { path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
-    statusMsg.value = cached
-      ? '已使用缓存的转换文件，无需重新转换'
-      : '已转码为 H.264 MP4，并缓存到原视频同目录（下次直接播放）'
+    const { outputPath, cached } = await window.api.transcodeVideo(src)
+    video.value = { sourcePath: src, path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
+    statusMsg.value = cached ? '已使用缓存的转换文件，无需重新转换' : '已转码为 H.264 MP4'
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -503,10 +531,8 @@ async function autoConvert(sourcePath: string): Promise<void> {
     statusMsg.value = '正在无损重封装为 MP4…'
     try {
       const { outputPath, cached } = await window.api.remuxVideo(sourcePath)
-      video.value = { path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
-      statusMsg.value = cached
-        ? '已使用缓存的转换文件，无需重新转换'
-        : '已无损转为 MP4，并缓存到原视频同目录（下次直接播放）'
+      video.value = { sourcePath, path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
+      statusMsg.value = cached ? '已使用缓存的转换文件，无需重新转换' : '已无损转为 MP4'
       return
     } catch {
       statusMsg.value = '无损重封装失败，改用 H.264 转码…'
@@ -521,10 +547,8 @@ async function autoConvert(sourcePath: string): Promise<void> {
   transcodePercent.value = 0
   try {
     const { outputPath, cached } = await window.api.transcodeVideo(sourcePath)
-    video.value = { path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
-    statusMsg.value = cached
-      ? '已使用缓存的转换文件，无需重新转换'
-      : '已转码为 H.264 MP4，并缓存到原视频同目录（下次直接播放）'
+    video.value = { sourcePath, path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
+    statusMsg.value = cached ? '已使用缓存的转换文件，无需重新转换' : '已转码为 H.264 MP4'
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -560,6 +584,7 @@ onMounted(() => {
   void loadModels()
   void checkLlmStatus()
   void loadLibrary()
+  void loadCacheStats()
   window.addEventListener('dragover', onWindowDragOver)
   window.addEventListener('drop', onWindowDrop)
   window.addEventListener('keydown', onAppKeydown)
@@ -657,6 +682,19 @@ const busy = computed(
               </div>
             </div>
           </div>
+
+          <div class="sidebar-footer">
+            <span class="cache-label" :title="cacheInfo?.dir">
+              转换缓存：{{ cacheInfo ? fmtBytes(cacheInfo.totalBytes) : '…' }}
+            </span>
+            <button
+              class="sidebar-cache-clear"
+              :disabled="!cacheInfo || cacheInfo.totalBytes === 0"
+              @click="clearTranscodeCache"
+            >
+              清理
+            </button>
+          </div>
         </aside>
 
         <div class="player-area">
@@ -690,7 +728,7 @@ const busy = computed(
           v-if="!video.needsRemux"
           :src="video.url"
           :segments="segments"
-          :title="video.path.split('/').pop()"
+          :title="video.sourcePath.split('/').pop()"
           :initial-time="initialTime"
           :autoplay="shouldAutoplay"
           :minimal="minimalMode"
@@ -700,7 +738,7 @@ const busy = computed(
         />
         <div v-else class="remux-hint">
           <div class="remux-hint-icon">⚠️</div>
-          <p>该视频是 <b>{{ extOf(video.path).slice(1).toUpperCase() }}</b> 容器，浏览器内核无法直接播放。</p>
+          <p>该视频是 <b>{{ extOf(video.sourcePath).slice(1).toUpperCase() }}</b> 容器，浏览器内核无法直接播放。</p>
           <p class="dim">
             若内部是 H.264 编码：点「无损转 MP4」（秒完成）。<br />
             若内部是 HEVC/H.265 / 10bit / AV1 等：点「转码为 H.264」（重编码，较慢但支持所有格式）。
@@ -852,6 +890,39 @@ const busy = computed(
 .sidebar-item-x:hover {
   color: var(--danger);
   background: rgba(255, 92, 108, 0.12);
+}
+.sidebar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.cache-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar-cache-clear {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.sidebar-cache-clear:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.sidebar-cache-clear:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 .player-area {
   flex: 1;
