@@ -263,6 +263,9 @@ function findActive(t: number): SubtitleSegment | null {
 }
 
 const progress = computed(() => (duration.value > 0 ? (currentTime.value / duration.value) * 100 : 0))
+// 音量/亮度滑块填充百分比（用于画出与播放进度一致的细进度条）
+const volumeFill = computed(() => `${(volume.value * 100).toFixed(0)}%`)
+const brightnessFill = computed(() => `${(((brightness.value - 0.4) / 1.2) * 100).toFixed(0)}%`)
 const MODE_OPTIONS: Array<{ v: 'bilingual' | 'original' | 'translation' | 'off'; label: string }> = [
   { v: 'bilingual', label: '双语' },
   { v: 'original', label: '仅原文' },
@@ -348,7 +351,7 @@ onBeforeUnmount(() => {
 
     <!-- IINA 底部控制栏 -->
     <div v-show="!minimal" class="control-bar" :class="{ visible: controlsVisible }">
-      <button class="icon-btn play" @click="togglePlay">
+      <button class="icon-btn play" title="播放 / 暂停（空格）" @click="togglePlay">
         {{ isPlaying ? '⏸' : '▶' }}
       </button>
       <span class="time">{{ fmtTime(currentTime) }}</span>
@@ -367,12 +370,21 @@ onBeforeUnmount(() => {
       <span class="time">{{ fmtTime(duration) }}</span>
 
       <div class="vol">
-        <span class="vol-icon">♫</span>
-        <input v-model.number="volume" type="range" min="0" max="1" step="0.05" class="vol-slider" />
+        <span class="vol-icon" title="音量">♫</span>
+        <input
+          v-model.number="volume"
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          class="vol-slider"
+          title="音量"
+          :style="{ background: `linear-gradient(to right, var(--accent) ${volumeFill}, rgba(255, 255, 255, 0.25) ${volumeFill})` }"
+        />
       </div>
 
       <div class="vol">
-        <span class="vol-icon">☼</span>
+        <span class="vol-icon" title="亮度">☼</span>
         <input
           v-model.number="brightness"
           type="range"
@@ -381,6 +393,7 @@ onBeforeUnmount(() => {
           step="0.05"
           class="vol-slider"
           title="亮度"
+          :style="{ background: `linear-gradient(to right, var(--accent) ${brightnessFill}, rgba(255, 255, 255, 0.25) ${brightnessFill})` }"
           @input="showOsd('亮度 ' + Math.round(brightness * 100) + '%')"
         />
       </div>
@@ -608,10 +621,28 @@ onBeforeUnmount(() => {
 }
 .vol-icon {
   font-size: 13px;
+  cursor: default;
 }
 .vol-slider {
+  -webkit-appearance: none;
+  appearance: none;
   width: 70px;
-  accent-color: var(--accent);
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.25);
+  outline: none;
+  cursor: pointer;
+}
+.vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  margin-top: -4px;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
 }
 
 /* ---- 字幕同步按钮 ---- */
