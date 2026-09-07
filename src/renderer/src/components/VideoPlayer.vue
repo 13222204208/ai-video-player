@@ -26,6 +26,7 @@ const currentTime = ref(0)
 const duration = ref(0)
 const isPlaying = ref(false)
 const volume = ref(1)
+const brightness = ref(1)
 const playbackRate = ref(1)
 
 // ---- 字幕设置（PotPlayer 风格）----
@@ -322,6 +323,7 @@ onBeforeUnmount(() => {
       ref="videoEl"
       class="video"
       :src="src ?? undefined"
+      :style="{ filter: `brightness(${brightness})` }"
       @timeupdate="onTimeUpdate"
       @loadedmetadata="onLoadedMetadata"
       @play="onPlay"
@@ -365,8 +367,22 @@ onBeforeUnmount(() => {
       <span class="time">{{ fmtTime(duration) }}</span>
 
       <div class="vol">
-        <span class="vol-icon">🔊</span>
+        <span class="vol-icon">♫</span>
         <input v-model.number="volume" type="range" min="0" max="1" step="0.05" class="vol-slider" />
+      </div>
+
+      <div class="vol">
+        <span class="vol-icon">☼</span>
+        <input
+          v-model.number="brightness"
+          type="range"
+          min="0.4"
+          max="1.6"
+          step="0.05"
+          class="vol-slider"
+          title="亮度"
+          @input="showOsd('亮度 ' + Math.round(brightness * 100) + '%')"
+        />
       </div>
 
       <div class="sub-sync">
