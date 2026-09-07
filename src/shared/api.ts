@@ -56,9 +56,9 @@ export interface Api {
   onLlmLog(cb: (line: string) => void): () => void
 
   probeVideo(videoPath: string): Promise<{ videoCodec: string; audioCodec: string }>
-  remuxVideo(videoPath: string): Promise<{ outputPath: string }>
+  remuxVideo(videoPath: string): Promise<{ outputPath: string; cached: boolean }>
   onRemuxLog(cb: (p: RemuxLog) => void): () => void
-  transcodeVideo(videoPath: string): Promise<{ outputPath: string }>
+  transcodeVideo(videoPath: string): Promise<{ outputPath: string; cached: boolean }>
   onTranscodeLog(cb: (p: RemuxLog) => void): () => void
 
   openVideoDialog(): Promise<string | null>

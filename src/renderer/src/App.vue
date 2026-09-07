@@ -451,9 +451,11 @@ async function remux(): Promise<void> {
   remuxing.value = true
   error.value = null
   try {
-    const { outputPath } = await window.api.remuxVideo(video.value.path)
+    const { outputPath, cached } = await window.api.remuxVideo(video.value.path)
     video.value = { path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
-    statusMsg.value = '已无损转为 MP4，可以生成字幕了'
+    statusMsg.value = cached
+      ? '已使用缓存的转换文件，无需重新转换'
+      : '已无损转为 MP4，并缓存到原视频同目录（下次直接播放）'
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -468,9 +470,11 @@ async function transcode(): Promise<void> {
   transcodePercent.value = 0
   error.value = null
   try {
-    const { outputPath } = await window.api.transcodeVideo(video.value.path)
+    const { outputPath, cached } = await window.api.transcodeVideo(video.value.path)
     video.value = { path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
-    statusMsg.value = '已转码为 H.264 MP4，可以播放和生成字幕了'
+    statusMsg.value = cached
+      ? '已使用缓存的转换文件，无需重新转换'
+      : '已转码为 H.264 MP4，并缓存到原视频同目录（下次直接播放）'
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -498,9 +502,11 @@ async function autoConvert(sourcePath: string): Promise<void> {
     remuxing.value = true
     statusMsg.value = '正在无损重封装为 MP4…'
     try {
-      const { outputPath } = await window.api.remuxVideo(sourcePath)
+      const { outputPath, cached } = await window.api.remuxVideo(sourcePath)
       video.value = { path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
-      statusMsg.value = '已无损转为 MP4，可以生成字幕了'
+      statusMsg.value = cached
+        ? '已使用缓存的转换文件，无需重新转换'
+        : '已无损转为 MP4，并缓存到原视频同目录（下次直接播放）'
       return
     } catch {
       statusMsg.value = '无损重封装失败，改用 H.264 转码…'
@@ -514,9 +520,11 @@ async function autoConvert(sourcePath: string): Promise<void> {
   transcoding.value = true
   transcodePercent.value = 0
   try {
-    const { outputPath } = await window.api.transcodeVideo(sourcePath)
+    const { outputPath, cached } = await window.api.transcodeVideo(sourcePath)
     video.value = { path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
-    statusMsg.value = '已转码为 H.264 MP4，可以播放和生成字幕了'
+    statusMsg.value = cached
+      ? '已使用缓存的转换文件，无需重新转换'
+      : '已转码为 H.264 MP4，并缓存到原视频同目录（下次直接播放）'
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   } finally {

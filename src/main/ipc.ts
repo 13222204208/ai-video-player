@@ -1,5 +1,6 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
-import { extname, join } from 'node:path'
+import { extname, join, dirname, basename } from 'node:path'
+import { existsSync, readFileSync, writeFileSync, statSync } from 'node:fs'
 import type { RunPipelineOptions, SaveSubtitlesPayload } from '@shared/types'
 import { runPipeline, cancelPipeline } from './services/pipeline'
 import { startStreaming, cancelStreaming } from './services/streaming'
@@ -18,7 +19,47 @@ import {
   getProgress
 } from './services/library'
 import { remuxToMp4, transcodeToH264, probeVideo } from './services/ffmpeg'
-import { getTempDir } from './services/paths'
+
+/** 转换缓存：原视频同目录下 <原名>.aivplayer.mp4，附带 <原名>.aivplayer.json 记录源文件指纹 */
+function convertedPath(videoPath: string): string {
+  const dir = dirname(videoPath)
+  const base = basename(videoPath, extname(videoPath))
+  return join(dir, `${base}.aivplayer.mp4`)
+}
+
+function sidecarPath(videoPath: string): string {
+  const dir = dirname(videoPath)
+  const base = basename(videoPath, extname(videoPath))
+  return join(dir, `${base}.aivplayer.json`)
+}
+
+/** 缓存是否仍有效（源文件大小 + 修改时间未变） */
+function hasValidCache(videoPath: string): boolean {
+  const out = convertedPath(videoPath)
+  const side = sidecarPath(videoPath)
+  if (!existsSync(out) || !existsSync(side)) return false
+  try {
+    const src = statSync(videoPath)
+    const meta = JSON.parse(readFileSync(side, 'utf8')) as { size?: number; mtimeMs?: number }
+    return meta.size === src.size && meta.mtimeMs === Math.floor(src.mtimeMs)
+  } catch {
+    return false
+  }
+}
+
+/** 转换成功后记录源文件指纹，下次直接复用缓存 */
+function markCache(videoPath: string): void {
+  try {
+    const src = statSync(videoPath)
+    writeFileSync(
+      sidecarPath(videoPath),
+      JSON.stringify({ size: src.size, mtimeMs: Math.floor(src.mtimeMs) }),
+      'utf8'
+    )
+  } catch {
+    /* 忽略（目录只读等场景不影响主流程） */
+  }
+}
 
 export function registerIpc(): void {
   ipcMain.handle('pipeline:run', (event, videoPath: string, options: RunPipelineOptions) => {
@@ -130,20 +171,29 @@ export function registerIpc(): void {
 
   ipcMain.handle('media:remux', (event, videoPath: string) => {
     const ext = extname(videoPath).toLowerCase()
-    const outPath = join(getTempDir(), `remux-${Date.now()}.mp4`)
+    const outPath = convertedPath(videoPath)
+    // 已有有效缓存则直接复用，不重复转换
+    if (hasValidCache(videoPath)) return { outputPath: outPath, cached: true }
     const win = BrowserWindow.fromWebContents(event.sender)
     return remuxToMp4(videoPath, outPath, ({ data }) => {
       // ffmpeg 进度（copy 流通常很快），仅透传日志
       win?.webContents.send('remux:log', { data, ext })
-    }).then(() => ({ outputPath: outPath }))
+    }).then(() => {
+      markCache(videoPath)
+      return { outputPath: outPath, cached: false }
+    })
   })
 
   ipcMain.handle('media:transcode', (event, videoPath: string) => {
-    const outPath = join(getTempDir(), `transcode-${Date.now()}.mp4`)
+    const outPath = convertedPath(videoPath)
+    if (hasValidCache(videoPath)) return { outputPath: outPath, cached: true }
     const win = BrowserWindow.fromWebContents(event.sender)
     return transcodeToH264(videoPath, outPath, ({ data }) => {
       win?.webContents.send('transcode:log', { data })
-    }).then(() => ({ outputPath: outPath }))
+    }).then(() => {
+      markCache(videoPath)
+      return { outputPath: outPath, cached: false }
+    })
   })
 
   ipcMain.handle('dialog:openVideo', async (event) => {
