@@ -2,10 +2,10 @@ cask "ai-video-player" do
   version "0.1.0"
   sha256 "33b76ca3223427f9646c6e0a0752f91c13ada466edd86a5e4a8794317fbc29cd"
 
-  url "https://github.com/13222204208/ai-video-player/releases/download/v#{version}/AIVideoPlayer-#{version}-arm64-mac.zip"
+  url "https://github.com/yangpan-dev/ai-video-player/releases/download/v#{version}/AIVideoPlayer-#{version}-arm64-mac.zip"
   name "AIVideoPlayer"
   desc "本地 AI 视频播放器：无字幕日语/英语视频实时生成原文 + 中文字幕（完全离线）"
-  homepage "https://github.com/13222204208/ai-video-player"
+  homepage "https://github.com/yangpan-dev/ai-video-player"
 
   # Apple Silicon 专用（whisper.cpp 为 arm64 Metal 构建）
   depends_on arch: :arm64

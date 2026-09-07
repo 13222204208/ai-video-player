@@ -14,10 +14,10 @@
 
 ## 📦 下载安装（已打包程序，无需编译）
 
-安装包发布在 GitHub Releases：https://github.com/13222204208/ai-video-player/releases/tag/v0.1.0
+安装包发布在 GitHub Releases：https://github.com/yangpan-dev/ai-video-player/releases/tag/v0.1.0
 
-- macOS (Apple Silicon)：[AIVideoPlayer-0.1.0-arm64-mac.zip](https://github.com/13222204208/ai-video-player/releases/download/v0.1.0/AIVideoPlayer-0.1.0-arm64-mac.zip)
-- Windows (x64)：[AIVideoPlayer.Setup.0.1.0.exe](https://github.com/13222204208/ai-video-player/releases/download/v0.1.0/AIVideoPlayer.Setup.0.1.0.exe)
+- macOS (Apple Silicon)：[AIVideoPlayer-0.1.0-arm64-mac.zip](https://github.com/yangpan-dev/ai-video-player/releases/download/v0.1.0/AIVideoPlayer-0.1.0-arm64-mac.zip)
+- Windows (x64)：[AIVideoPlayer.Setup.0.1.0.exe](https://github.com/yangpan-dev/ai-video-player/releases/download/v0.1.0/AIVideoPlayer.Setup.0.1.0.exe)
 
 ### macOS（Apple Silicon）
 
