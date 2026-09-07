@@ -42,6 +42,7 @@ const api: Api = {
   downloadLlmModel: () => ipcRenderer.invoke('llm:download'),
   onLlmLog: (cb) => subscribe('llm:log', cb),
 
+  probeVideo: (videoPath) => ipcRenderer.invoke('media:probe', videoPath),
   remuxVideo: (videoPath) => ipcRenderer.invoke('media:remux', videoPath),
   onRemuxLog: (cb) => subscribe('remux:log', cb),
   transcodeVideo: (videoPath) => ipcRenderer.invoke('media:transcode', videoPath),

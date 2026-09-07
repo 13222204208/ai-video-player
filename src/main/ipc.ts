@@ -17,7 +17,7 @@ import {
   saveProgress,
   getProgress
 } from './services/library'
-import { remuxToMp4, transcodeToH264 } from './services/ffmpeg'
+import { remuxToMp4, transcodeToH264, probeVideo } from './services/ffmpeg'
 import { getTempDir } from './services/paths'
 
 export function registerIpc(): void {
@@ -122,6 +122,10 @@ export function registerIpc(): void {
     return downloadLlmModel((p) => {
       if (!event.sender.isDestroyed()) event.sender.send('models:progress', p)
     })
+  })
+
+  ipcMain.handle('media:probe', (_event, videoPath: string) => {
+    return probeVideo(videoPath)
   })
 
   ipcMain.handle('media:remux', (event, videoPath: string) => {

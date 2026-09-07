@@ -211,6 +211,7 @@ function setVideoFromPath(path: string): void {
   video.value = { path, url: needsRemux ? '' : mediaUrl(path), needsRemux }
   resetResults()
   void afterVideoOpened(path)
+  if (needsRemux) void autoConvert(path)
 }
 
 function onDropped(file: File): void {
@@ -222,6 +223,7 @@ function onDropped(file: File): void {
     video.value = { path, url: needsRemux ? '' : URL.createObjectURL(file), needsRemux }
     resetResults()
     void afterVideoOpened(path)
+    if (needsRemux) void autoConvert(path)
   } catch (e) {
     error.value = '无法读取文件路径：' + (e instanceof Error ? e.message : String(e))
   }
@@ -467,6 +469,52 @@ async function transcode(): Promise<void> {
   error.value = null
   try {
     const { outputPath } = await window.api.transcodeVideo(video.value.path)
+    video.value = { path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
+    statusMsg.value = '已转码为 H.264 MP4，可以播放和生成字幕了'
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    transcoding.value = false
+  }
+}
+
+// Chromium 内核能直接解码的视频编码（这些只需无损重封装）
+const PLAYABLE_CODECS = new Set(['h264', 'vp8', 'vp9', 'av1'])
+
+/**
+ * 打开非原生格式（avi/mkv/ts/flv/wmv/m2ts 等）时自动转成可播放的 MP4：
+ * 编码兼容则无损重封装（秒完成），否则转码为 H.264（较慢但通用）。
+ */
+async function autoConvert(sourcePath: string): Promise<void> {
+  // 探测编码，决定无损重封装还是转码
+  let videoCodec = ''
+  try {
+    videoCodec = (await window.api.probeVideo(sourcePath)).videoCodec
+  } catch {
+    videoCodec = ''
+  }
+
+  if (PLAYABLE_CODECS.has(videoCodec)) {
+    remuxing.value = true
+    statusMsg.value = '正在无损重封装为 MP4…'
+    try {
+      const { outputPath } = await window.api.remuxVideo(sourcePath)
+      video.value = { path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
+      statusMsg.value = '已无损转为 MP4，可以生成字幕了'
+      return
+    } catch {
+      statusMsg.value = '无损重封装失败，改用 H.264 转码…'
+    } finally {
+      remuxing.value = false
+    }
+  } else {
+    statusMsg.value = '检测到浏览器不支持的编码，正在转码为 H.264…'
+  }
+
+  transcoding.value = true
+  transcodePercent.value = 0
+  try {
+    const { outputPath } = await window.api.transcodeVideo(sourcePath)
     video.value = { path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
     statusMsg.value = '已转码为 H.264 MP4，可以播放和生成字幕了'
   } catch (e) {

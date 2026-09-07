@@ -55,6 +55,7 @@ export interface Api {
   downloadLlmModel(): Promise<string>
   onLlmLog(cb: (line: string) => void): () => void
 
+  probeVideo(videoPath: string): Promise<{ videoCodec: string; audioCodec: string }>
   remuxVideo(videoPath: string): Promise<{ outputPath: string }>
   onRemuxLog(cb: (p: RemuxLog) => void): () => void
   transcodeVideo(videoPath: string): Promise<{ outputPath: string }>

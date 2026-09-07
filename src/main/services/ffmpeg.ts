@@ -10,6 +10,33 @@ export interface FfmpegLog {
   data: string
 }
 
+export interface ProbeResult {
+  videoCodec: string
+  audioCodec: string
+}
+
+/** 用 ffmpeg -i 探测视频/音频编码（从 stderr 的 Stream 行解析） */
+export function probeVideo(videoPath: string): Promise<ProbeResult> {
+  return new Promise((resolve, reject) => {
+    const ffmpeg = resolveFfmpeg()
+    const proc = spawn(ffmpeg, ['-hide_banner', '-i', videoPath])
+    let out = ''
+    proc.stderr.on('data', (d: Buffer) => {
+      out += d.toString()
+    })
+    proc.on('error', (err) => reject(new Error(`无法启动 ffmpeg：${err.message}`)))
+    // 只探测不输出，ffmpeg 会以非 0 退出码结束，但 Stream 信息已打印
+    proc.on('close', () => {
+      const v = /Video:\s*([a-zA-Z0-9_]+)/.exec(out)
+      const a = /Audio:\s*([a-zA-Z0-9_]+)/.exec(out)
+      resolve({
+        videoCodec: v?.[1]?.toLowerCase() ?? '',
+        audioCodec: a?.[1]?.toLowerCase() ?? ''
+      })
+    })
+  })
+}
+
 export function resolveFfmpeg(): string {
   if (process.env.FFMPEG_BIN) return process.env.FFMPEG_BIN
   // 优先用随 app 打包的平台特定 ffmpeg 二进制（Windows 用 ffmpeg.exe）
