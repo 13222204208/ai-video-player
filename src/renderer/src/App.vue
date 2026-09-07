@@ -308,9 +308,26 @@ async function loadCacheStats(): Promise<void> {
 }
 
 async function clearTranscodeCache(): Promise<void> {
+  const current = video.value
+  const wasConverted = current ? current.path !== current.sourcePath : false
+  // 清理前确认，并提醒清理后非原生格式视频需重新转换
+  if (
+    !window.confirm(
+      '确定清理转换缓存吗？\n\n清理后，avi / mkv / ts 等非原生格式视频需要重新转换才能播放。'
+    )
+  ) {
+    return
+  }
   try {
     cacheInfo.value = await window.api.clearCache()
-    statusMsg.value = '转换缓存已清理'
+    if (wasConverted && current) {
+      // 当前视频正播放的是刚被删除的缓存文件，恢复到源文件并自动重新转换
+      statusMsg.value = '转换缓存已清理，正在重新转换当前视频…'
+      video.value = { sourcePath: current.sourcePath, path: current.sourcePath, url: '', needsRemux: true }
+      void autoConvert(current.sourcePath)
+    } else {
+      statusMsg.value = '转换缓存已清理'
+    }
   } catch {
     /* 忽略 */
   }
