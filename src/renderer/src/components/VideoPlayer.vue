@@ -85,7 +85,11 @@ function applyInitialTime(t: number | undefined): void {
 function maybePlay(): void {
   const v = videoEl.value
   if (!v || !props.autoplay) return
-  if (v.readyState >= 1 && v.paused) void v.play()
+  if (v.readyState >= 1 && v.paused) {
+    v.play().catch(() => {
+      /* 自动播放被拒绝时保持暂停态，图标由 onPause 正确回退 */
+    })
+  }
 }
 
 function onLoadedMetadata(): void {

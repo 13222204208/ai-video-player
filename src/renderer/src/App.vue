@@ -169,6 +169,11 @@ function titleOf(path: string): string {
   return path.split(/[\\/]/).pop() ?? path
 }
 
+/** 当前播放的源文件是否就是该列表项（用于高亮选中的视频） */
+function isCurrentVideo(path: string): boolean {
+  return video.value?.sourcePath === path
+}
+
 /** 播放器时间更新：节流保存进度（每 5 秒一次） */
 function onPlayerTime(t: number): void {
   currentVideoTime = t
@@ -201,10 +206,9 @@ async function afterVideoOpened(path: string): Promise<void> {
     if (saved) {
       segments.value = saved
       statusMsg.value = '已加载上次保存的字幕，无需重新识别'
-      shouldAutoplay.value = true
-    } else {
-      shouldAutoplay.value = false
     }
+    // 打开视频一律自动播放（含从播放列表/历史切换）
+    shouldAutoplay.value = true
   } catch {
     /* 忽略 */
   }
@@ -213,6 +217,7 @@ async function afterVideoOpened(path: string): Promise<void> {
 function setVideoFromPath(path: string): void {
   saveCurrentProgress()
   shouldAutoplay.value = false
+  initialTime.value = 0
   const needsRemux = !PLAYABLE_EXT.includes(extOf(path))
   video.value = { sourcePath: path, path, url: needsRemux ? '' : mediaUrl(path), needsRemux }
   resetResults()
@@ -225,6 +230,7 @@ function onDropped(file: File): void {
     const path = window.api.getPathForFile(file)
     saveCurrentProgress()
     shouldAutoplay.value = false
+    initialTime.value = 0
     const needsRemux = !PLAYABLE_EXT.includes(extOf(path))
     video.value = { sourcePath: path, path, url: needsRemux ? '' : URL.createObjectURL(file), needsRemux }
     resetResults()
@@ -680,7 +686,7 @@ const busy = computed(
             <button class="sidebar-action" @click="addFiles">🎬 添加视频文件</button>
             <button class="sidebar-action" @click="addFolder">📁 添加文件夹（含子文件夹）</button>
             <div v-if="!library.playlist.length" class="sidebar-empty">播放列表为空</div>
-            <div v-for="e in library.playlist" :key="e.path" class="sidebar-item">
+            <div v-for="e in library.playlist" :key="e.path" class="sidebar-item" :class="{ active: isCurrentVideo(e.path) }">
               <div class="sidebar-item-title" :title="e.path" @click="playPath(e.path)">
                 {{ e.title }}
               </div>
@@ -693,7 +699,7 @@ const busy = computed(
               清空历史
             </button>
             <div v-if="!library.history.length" class="sidebar-empty">暂无历史</div>
-            <div v-for="e in library.history" :key="e.path" class="sidebar-item">
+            <div v-for="e in library.history" :key="e.path" class="sidebar-item" :class="{ active: isCurrentVideo(e.path) }">
               <div class="sidebar-item-title" :title="e.path" @click="playPath(e.path)">
                 {{ e.title }}
               </div>
@@ -887,6 +893,13 @@ const busy = computed(
 }
 .sidebar-item:hover {
   background: var(--bg-elevated);
+}
+.sidebar-item.active {
+  background: rgba(79, 140, 255, 0.16);
+}
+.sidebar-item.active .sidebar-item-title {
+  color: var(--accent);
+  font-weight: 600;
 }
 .sidebar-item-title {
   flex: 1;
