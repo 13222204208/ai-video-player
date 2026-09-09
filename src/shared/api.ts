@@ -63,6 +63,7 @@ export interface Api {
 
   cacheStats(): Promise<{ fileCount: number; totalBytes: number; dir: string }>
   clearCache(): Promise<{ fileCount: number; totalBytes: number; dir: string }>
+  cancelConvert(): Promise<void>
 
   openVideoDialog(): Promise<string | null>
 }

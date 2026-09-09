@@ -216,6 +216,8 @@ async function afterVideoOpened(path: string): Promise<void> {
 
 function setVideoFromPath(path: string): void {
   saveCurrentProgress()
+  // 切换视频：若上一个视频仍在转换则取消（同一时刻只转一个文件）
+  stopActiveConversion()
   shouldAutoplay.value = false
   initialTime.value = 0
   const needsRemux = !PLAYABLE_EXT.includes(extOf(path))
@@ -229,6 +231,7 @@ function onDropped(file: File): void {
   try {
     const path = window.api.getPathForFile(file)
     saveCurrentProgress()
+    stopActiveConversion()
     shouldAutoplay.value = false
     initialTime.value = 0
     const needsRemux = !PLAYABLE_EXT.includes(extOf(path))
@@ -499,19 +502,50 @@ async function exportSubtitles(): Promise<void> {
   }
 }
 
+// 转换序号：开始一次新转换/切换视频时自增，使之前仍在跑的转换结果作废
+// （保证同一时刻只转换一个文件，避免并发 ffmpeg 出错）
+let convertSeq = 0
+
+function isCancelled(e: unknown): boolean {
+  return e instanceof Error && e.message.includes('已取消')
+}
+
+/** 停止当前转换（切换视频或手动取消时调用），并作废其结果 */
+function stopActiveConversion(): void {
+  convertSeq++
+  if (remuxing.value || transcoding.value) {
+    void window.api.cancelConvert()
+  }
+  remuxing.value = false
+  transcoding.value = false
+  transcodePercent.value = 0
+}
+
+/** 手动取消当前的重封装/转码 */
+function cancelConversion(): void {
+  stopActiveConversion()
+  statusMsg.value = '转换已取消'
+}
+
 async function remux(): Promise<void> {
   if (!video.value) return
   remuxing.value = true
   error.value = null
   const src = video.value.sourcePath
+  const seq = ++convertSeq
   try {
     const { outputPath, cached } = await window.api.remuxVideo(src)
-    video.value = { sourcePath: src, path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
-    statusMsg.value = cached ? '已使用缓存的转换文件，无需重新转换' : '已无损转为 MP4'
+    if (seq === convertSeq && video.value?.sourcePath === src) {
+      video.value = { sourcePath: src, path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
+      statusMsg.value = cached ? '已使用缓存的转换文件，无需重新转换' : '已无损转为 MP4'
+    }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
+    if (seq === convertSeq) {
+      if (isCancelled(e)) statusMsg.value = '重封装已取消'
+      else error.value = e instanceof Error ? e.message : String(e)
+    }
   } finally {
-    remuxing.value = false
+    if (seq === convertSeq) remuxing.value = false
   }
 }
 
@@ -522,14 +556,23 @@ async function transcode(): Promise<void> {
   transcodePercent.value = 0
   error.value = null
   const src = video.value.sourcePath
+  const seq = ++convertSeq
   try {
     const { outputPath, cached } = await window.api.transcodeVideo(src)
-    video.value = { sourcePath: src, path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
-    statusMsg.value = cached ? '已使用缓存的转换文件，无需重新转换' : '已转码为 H.264 MP4'
+    if (seq === convertSeq && video.value?.sourcePath === src) {
+      video.value = { sourcePath: src, path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
+      statusMsg.value = cached ? '已使用缓存的转换文件，无需重新转换' : '已转码为 H.264 MP4'
+    }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
+    if (seq === convertSeq) {
+      if (isCancelled(e)) statusMsg.value = '转码已取消'
+      else error.value = e instanceof Error ? e.message : String(e)
+    }
   } finally {
-    transcoding.value = false
+    if (seq === convertSeq) {
+      transcoding.value = false
+      transcodePercent.value = 0
+    }
   }
 }
 
@@ -539,43 +582,63 @@ const PLAYABLE_CODECS = new Set(['h264', 'vp8', 'vp9', 'av1'])
 /**
  * 打开非原生格式（avi/mkv/ts/flv/wmv/m2ts 等）时自动转成可播放的 MP4：
  * 编码兼容则无损重封装（秒完成），否则转码为 H.264（较慢但通用）。
+ * 同一时刻只转换一个文件：若上一个文件仍在转换，先取消它再转换当前的。
  */
 async function autoConvert(sourcePath: string): Promise<void> {
-  // 探测编码，决定无损重封装还是转码
+  // 若上一个文件仍在转换，取消其 ffmpeg 进程（防止并发转换导致错误）
+  stopActiveConversion()
+  const seq = convertSeq // 记录本次转换序号
+
   let videoCodec = ''
   try {
     videoCodec = (await window.api.probeVideo(sourcePath)).videoCodec
   } catch {
     videoCodec = ''
   }
+  if (seq !== convertSeq) return // 探测期间又切换/取消，作废
 
   if (PLAYABLE_CODECS.has(videoCodec)) {
     remuxing.value = true
     statusMsg.value = '正在无损重封装为 MP4…'
     try {
       const { outputPath, cached } = await window.api.remuxVideo(sourcePath)
-      video.value = { sourcePath, path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
-      statusMsg.value = cached ? '已使用缓存的转换文件，无需重新转换' : '已无损转为 MP4'
+      if (seq === convertSeq && video.value?.sourcePath === sourcePath) {
+        video.value = { sourcePath, path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
+        statusMsg.value = cached ? '已使用缓存的转换文件，无需重新转换' : '已无损转为 MP4'
+      }
       return
-    } catch {
+    } catch (e) {
+      if (seq !== convertSeq) return
+      if (isCancelled(e)) {
+        statusMsg.value = '重封装已取消'
+        return
+      }
       statusMsg.value = '无损重封装失败，改用 H.264 转码…'
     } finally {
-      remuxing.value = false
+      if (seq === convertSeq) remuxing.value = false
     }
   } else {
-    statusMsg.value = '检测到浏览器不支持的编码，正在转码为 H.264…'
+    statusMsg.value = '检测到浏览器不支持的编码，正在转码为 H.264…（可点「取消」中止）'
   }
 
   transcoding.value = true
   transcodePercent.value = 0
   try {
     const { outputPath, cached } = await window.api.transcodeVideo(sourcePath)
-    video.value = { sourcePath, path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
-    statusMsg.value = cached ? '已使用缓存的转换文件，无需重新转换' : '已转码为 H.264 MP4'
+    if (seq === convertSeq && video.value?.sourcePath === sourcePath) {
+      video.value = { sourcePath, path: outputPath, url: mediaUrl(outputPath), needsRemux: false }
+      statusMsg.value = cached ? '已使用缓存的转换文件，无需重新转换' : '已转码为 H.264 MP4'
+    }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
+    if (seq === convertSeq) {
+      if (isCancelled(e)) statusMsg.value = '转码已取消'
+      else error.value = e instanceof Error ? e.message : String(e)
+    }
   } finally {
-    transcoding.value = false
+    if (seq === convertSeq) {
+      transcoding.value = false
+      transcodePercent.value = 0
+    }
   }
 }
 
@@ -772,6 +835,14 @@ const busy = computed(
             </button>
             <button :disabled="remuxing || transcoding" @click="transcode">
               {{ transcoding ? `转码中… ${transcodePercent}%` : '转码为 H.264' }}
+            </button>
+            <button
+              v-if="remuxing || transcoding"
+              class="danger"
+              title="取消当前转换"
+              @click="cancelConversion"
+            >
+              取消
             </button>
           </div>
           <div v-if="transcoding" class="bar-track transcode-bar">

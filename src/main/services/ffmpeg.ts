@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from 'electron'
@@ -8,6 +8,43 @@ import { getBinDir, platformArch } from './paths'
 export interface FfmpegLog {
   type: 'stderr' | 'stdout'
   data: string
+}
+
+// ---- 转换（重封装/转码）进程跟踪，保证同一时刻只有一个在跑、支持取消 ----
+let activeProc: ChildProcess | null = null
+let convertGeneration = 0
+
+/** 取消当前正在进行的转换：杀掉 ffmpeg，并使被取消的结果作废 */
+export function cancelConvert(): void {
+  convertGeneration++
+  if (activeProc && !activeProc.killed) {
+    activeProc.kill()
+  }
+}
+
+function runConvert(
+  args: string[],
+  onLog?: (log: FfmpegLog) => void,
+  failMsg?: (code: number | null) => string
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const ffmpeg = resolveFfmpeg()
+    const gen = convertGeneration
+    const proc = spawn(ffmpeg, args)
+    activeProc = proc
+    proc.stderr.on('data', (d: Buffer) => onLog?.({ type: 'stderr', data: d.toString() }))
+    proc.on('error', (err) => reject(new Error(`无法启动 ffmpeg：${err.message}`)))
+    proc.on('close', (code) => {
+      if (activeProc === proc) activeProc = null
+      if (gen !== convertGeneration) {
+        reject(new Error('已取消'))
+      } else if (code === 0) {
+        resolve()
+      } else {
+        reject(new Error(failMsg ? failMsg(code) : `ffmpeg 失败（退出码 ${code}）`))
+      }
+    })
+  })
 }
 
 export interface ProbeResult {
@@ -90,9 +127,8 @@ export function remuxToMp4(
   outMp4Path: string,
   onLog?: (log: FfmpegLog) => void
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const ffmpeg = resolveFfmpeg()
-    const args = [
+  return runConvert(
+    [
       '-y',
       '-hide_banner',
       '-i',
@@ -104,15 +140,10 @@ export function remuxToMp4(
       '-movflags',
       '+faststart',
       outMp4Path
-    ]
-    const proc = spawn(ffmpeg, args)
-    proc.stderr.on('data', (d: Buffer) => onLog?.({ type: 'stderr', data: d.toString() }))
-    proc.on('error', (err) => reject(new Error(`无法启动 ffmpeg：${err.message}`)))
-    proc.on('close', (code) => {
-      if (code === 0) resolve()
-      else reject(new Error(`ffmpeg 转码失败（退出码 ${code}）。可能该视频的编码不被 MP4 容器支持。`))
-    })
-  })
+    ],
+    onLog,
+    (code) => `ffmpeg 转码失败（退出码 ${code}）。可能该视频的编码不被 MP4 容器支持。`
+  )
 }
 
 /**
@@ -124,9 +155,8 @@ export function transcodeToH264(
   outMp4Path: string,
   onLog?: (log: FfmpegLog) => void
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const ffmpeg = resolveFfmpeg()
-    const args = [
+  return runConvert(
+    [
       '-y',
       '-hide_banner',
       '-i',
@@ -148,13 +178,8 @@ export function transcodeToH264(
       '-movflags',
       '+faststart',
       outMp4Path
-    ]
-    const proc = spawn(ffmpeg, args)
-    proc.stderr.on('data', (d: Buffer) => onLog?.({ type: 'stderr', data: d.toString() }))
-    proc.on('error', (err) => reject(new Error(`无法启动 ffmpeg：${err.message}`)))
-    proc.on('close', (code) => {
-      if (code === 0) resolve()
-      else reject(new Error(`ffmpeg 转码失败（退出码 ${code}）`))
-    })
-  })
+    ],
+    onLog,
+    (code) => `ffmpeg 转码失败（退出码 ${code}）`
+  )
 }

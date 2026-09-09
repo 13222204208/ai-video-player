@@ -19,7 +19,7 @@ import {
   saveProgress,
   getProgress
 } from './services/library'
-import { remuxToMp4, transcodeToH264, probeVideo } from './services/ffmpeg'
+import { remuxToMp4, transcodeToH264, probeVideo, cancelConvert } from './services/ffmpeg'
 import { getTranscodeCacheDir } from './services/paths'
 
 const CACHE_LIMIT_BYTES = 20 * 1024 * 1024 * 1024 // 20GB
@@ -238,6 +238,10 @@ export function registerIpc(): void {
 
   ipcMain.handle('cache:stats', () => cacheStats())
   ipcMain.handle('cache:clear', () => clearCache())
+
+  ipcMain.handle('media:convert-cancel', () => {
+    cancelConvert()
+  })
 
   ipcMain.handle('media:remux', (event, videoPath: string) => {
     const ext = extname(videoPath).toLowerCase()

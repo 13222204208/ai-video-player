@@ -50,6 +50,7 @@ const api: Api = {
 
   cacheStats: () => ipcRenderer.invoke('cache:stats'),
   clearCache: () => ipcRenderer.invoke('cache:clear'),
+  cancelConvert: () => ipcRenderer.invoke('media:convert-cancel'),
 
   openVideoDialog: () => ipcRenderer.invoke('dialog:openVideo')
 }
