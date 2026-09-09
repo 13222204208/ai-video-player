@@ -62,6 +62,13 @@ export function removeFromPlaylist(path: string): Library {
   return lib
 }
 
+export function clearPlaylist(): Library {
+  const lib = load()
+  lib.playlist = []
+  save(lib)
+  return lib
+}
+
 export function addToHistory(path: string, title: string): Library {
   const lib = load()
   lib.history = lib.history.filter((e) => e.path !== path)

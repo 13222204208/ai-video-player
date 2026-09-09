@@ -43,6 +43,7 @@ export interface Api {
   getLibrary(): Promise<Library>
   addToPlaylist(path: string, title: string): Promise<Library>
   removeFromPlaylist(path: string): Promise<Library>
+  clearPlaylist(): Promise<Library>
   addToHistory(path: string, title: string): Promise<Library>
   clearHistory(): Promise<Library>
   addVideoFiles(): Promise<{ library: Library; added: number } | null>

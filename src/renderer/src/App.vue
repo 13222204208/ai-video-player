@@ -293,6 +293,15 @@ async function removePlaylist(path: string): Promise<void> {
   }
 }
 
+async function clearPlaylistList(): Promise<void> {
+  if (!library.value.playlist.length) return
+  try {
+    library.value = await window.api.clearPlaylist()
+  } catch {
+    /* 忽略 */
+  }
+}
+
 async function clearHistoryList(): Promise<void> {
   try {
     library.value = await window.api.clearHistory()
@@ -748,6 +757,9 @@ const busy = computed(
           <div v-if="sidebarTab === 'playlist'" class="sidebar-body">
             <button class="sidebar-action" @click="addFiles">🎬 添加视频文件</button>
             <button class="sidebar-action" @click="addFolder">📁 添加文件夹（含子文件夹）</button>
+            <button v-if="library.playlist.length" class="sidebar-action sidebar-clear" @click="clearPlaylistList">
+              🗑 清空列表
+            </button>
             <div v-if="!library.playlist.length" class="sidebar-empty">播放列表为空</div>
             <div v-for="e in library.playlist" :key="e.path" class="sidebar-item" :class="{ active: isCurrentVideo(e.path) }">
               <div class="sidebar-item-title" :title="e.path" @click="playPath(e.path)">
@@ -948,6 +960,10 @@ const busy = computed(
   margin-bottom: 8px;
   font-size: 12px;
   padding: 7px 10px;
+}
+.sidebar-action.sidebar-clear:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: var(--danger);
 }
 .sidebar-empty {
   color: var(--text-dim);

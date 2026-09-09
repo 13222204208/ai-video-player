@@ -30,6 +30,7 @@ const api: Api = {
   getLibrary: () => ipcRenderer.invoke('library:get'),
   addToPlaylist: (path, title) => ipcRenderer.invoke('library:add-playlist', path, title),
   removeFromPlaylist: (path) => ipcRenderer.invoke('library:remove-playlist', path),
+  clearPlaylist: () => ipcRenderer.invoke('library:clear-playlist'),
   addToHistory: (path, title) => ipcRenderer.invoke('library:add-history', path, title),
   clearHistory: () => ipcRenderer.invoke('library:clear-history'),
   addVideoFiles: () => ipcRenderer.invoke('library:add-files'),

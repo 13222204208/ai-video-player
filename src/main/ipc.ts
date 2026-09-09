@@ -12,6 +12,7 @@ import {
   getLibrary,
   addToPlaylist,
   removeFromPlaylist,
+  clearPlaylist,
   addToHistory,
   clearHistory,
   addFilesToPlaylist,
@@ -176,6 +177,7 @@ export function registerIpc(): void {
   ipcMain.handle('library:get', () => getLibrary())
   ipcMain.handle('library:add-playlist', (_e, path: string, title: string) => addToPlaylist(path, title))
   ipcMain.handle('library:remove-playlist', (_e, path: string) => removeFromPlaylist(path))
+  ipcMain.handle('library:clear-playlist', () => clearPlaylist())
   ipcMain.handle('library:add-history', (_e, path: string, title: string) => addToHistory(path, title))
   ipcMain.handle('library:clear-history', () => clearHistory())
 
